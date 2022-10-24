@@ -30,6 +30,7 @@ class Custom_Plugin {
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
         $this->loader->add_action( 'admin_menu', $plugin_admin, 'register_admin_page');
+        $this->loader->add_action( 'wp_ajax_start_import', $plugin_admin , 'start_import' );
     }
 
     private function define_public_hooks() {

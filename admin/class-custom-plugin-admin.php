@@ -34,48 +34,90 @@ class Custom_Plugin_Admin
             'custom plugin', 'Custom plugin title', 'manage_options',
             'custom-plugin-admin', 'admin_page_open', '', 6
         );
+        add_option('zoomos_api_key', '');
 //        add_filter( 'option_page_capability_'.'custom-plugin-admin', 'my_page_capability' );
     }
 
+    /**
+     * @throws JsonException
+     */
     public function start_import() {
-//        $ch = curl_init();
-//        curl_setopt($ch, CURLOPT_URL, "http://icanhazip.com/");
-//        curl_setopt($ch, CURLOPT_URL, "https://api.zoomos.by/pricelist?key=vozduh.by-98Q3@D3WN");
-//        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-//        curl_setopt($ch, CURLOPT_HEADER, 0);
-//        $output = curl_exec($ch);
-//        curl_close($ch);
 
-        $json = file_get_contents("https://api.zoomos.by/pricelist?key=vozduh.by-98Q3@D3WN&limit=1");
-        $obj = json_decode($json,true);
+        $priceListLink = "https://api.zoomos.by/pricelist?key=";
+        $priceLimit = "&limit=1";
+        $productLink = "https://api.zoomos.by/item/{zoomos_product_id}?key=";
 
-        $args = array(
-            'post_type' => 'product',
-            'meta_key' => 'zoomos_id',
-            'meta_value' => $obj[0]['id'],
-            'meta_compare' => '='
-        );
-        $products = wc_get_products($args);
 
-        if (empty($products)) {
-            $post_id = wp_insert_post( array(
-                'post_title' => $obj[0]['supplierInfo']['model'],
+        if (isset($_POST['api-key']) && !empty($_POST['api-key'])) {
+
+            update_option( 'zoomos_api_key', $_POST['api-key']);
+            $key = get_option('zoomos_api_key');
+
+            $json = file_get_contents($priceListLink . $key . $priceLimit);
+            $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+            $args = array(
                 'post_type' => 'product',
-                'post_status' => 'publish',
-                'post_content' => '',
-            ));
-            $product = wc_get_product( $post_id );
-            $product->set_price($obj[0]['price']);
-            $product->set_regular_price($obj[0]['price']);
-            $product->set_stock_quantity($obj[0]['quantity']);
-            $imageId = $this->uploadImage($obj[0]['image']);
-            $product->set_image_id($imageId);
-            $product->update_meta_data('zoomos_id', $obj[0]['id']);
-            $product->update_meta_data('zoomos_category', $obj[0]['category']['id']);
-            $product->save();
-        } else {
-            update_post_meta( $products[0]->id, '_regular_price', (float)$obj[0]['price']);
-            update_post_meta( $products[0]->id, '_price', (float)$obj[0]['price']);
+                'meta_key' => 'zoomos_id',
+                'meta_value' => $obj[0]['id'],
+                'meta_compare' => '='
+            );
+            $products = wc_get_products($args);
+
+            if (empty($products)) {
+                $post_id = wp_insert_post(array(
+                    'post_title' => $obj[0]['typePrefix'] . " " . $obj[0]['vendor']['name'] . " " . $obj[0]['model'],
+                    'post_type' => 'product',
+                    'post_status' => 'publish',
+                    'post_content' => '',
+                ));
+                $product = wc_get_product($post_id);
+                $product->set_sku($obj[0]['id']);
+                $product->set_price($obj[0]['price']);
+                $product->set_regular_price($obj[0]['price']);
+                $product->set_manage_stock(true);
+                $product->set_stock_quantity($obj[0]['supplierInfo']['quantity']);
+                if ($obj[0]['status'] === 3) {
+                    $product->set_stock_status('outofstock');
+                }
+                $imageId = $this->uploadImage($obj[0]['image']);
+                $product->set_image_id($imageId);
+                $product->update_meta_data('zoomos_id', $obj[0]['id']);
+                $product->update_meta_data('zoomos_category', $obj[0]['category']['id']);
+
+                $productLink = str_replace('{zoomos_product_id}', $obj[0]['id'], $productLink);
+                $json = file_get_contents($productLink . $key );
+                $obj_additional_data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+                $gallery = [];
+                foreach ($obj_additional_data['images'] as $item) {
+                    $gallery[] = $this->uploadImage($item);
+                }
+                $product->set_gallery_image_ids($gallery);
+                $product->set_short_description($obj_additional_data['shortDescriptionHTML']);
+                $product->set_description($obj_additional_data['fullDescriptionHTML'] . '<br>' . $obj_additional_data['warrantyInfoHTML']);
+
+                $product->save();
+            } else {
+                $productLink = str_replace('{zoomos_product_id}', $products[0]->sku, $productLink);
+                $json = file_get_contents($productLink . $key );
+                $obj_additional_data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+                wp_update_post(array(
+                    'ID' => $products[0]->id,
+                    'post_title' => $obj[0]['typePrefix'] . " " . $obj[0]['vendor']['name'] . " " . $obj[0]['model'],
+                    'post_content' => $obj_additional_data['fullDescriptionHTML'] . '<br>' . $obj_additional_data['warrantyInfoHTML']
+                ));
+                update_post_meta($products[0]->id, '_regular_price', (float)$obj[0]['price']);
+                update_post_meta($products[0]->id, '_price', (float)$obj[0]['price']);
+                update_post_meta($products[0]->id, '_stock', $obj[0]['supplierInfo']['quantity']);
+
+
+
+                update_post_meta($products[0]->id, '_short_description', $obj_additional_data['shortDescriptionHTML']);
+
+//                update_post_meta($products[0]->id, '_description', $obj_additional_data['fullDescriptionHTML'] . '<br>' . $obj_additional_data['warrantyInfoHTML']);
+            }
         }
 
         wp_die();
@@ -116,4 +158,14 @@ class Custom_Plugin_Admin
         return $attach_id;
     }
 
+//        $ch = curl_init();
+//        curl_setopt($ch, CURLOPT_URL, "http://icanhazip.com/");
+//        curl_setopt($ch, CURLOPT_URL, "https://api.zoomos.by/pricelist?key=vozduh.by-98Q3@D3WN");
+//        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+//        curl_setopt($ch, CURLOPT_HEADER, 0);
+//        $output = curl_exec($ch);
+//        curl_close($ch);
+
+//          "https://api.zoomos.by/pricelist?key=vozduh.by-98Q3@D3WN&limit=1");
+//          https://api.zoomos.by/item/578618?key=vozduh.by-98Q3@D3WN
 }

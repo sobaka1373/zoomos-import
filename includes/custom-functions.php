@@ -6,9 +6,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 function admin_page_open() {
     ob_start();
     ?>
-    <p>Import options</p>
-    <input type="submit" class="button button-custom-import" name="insert" value="Import" />
-    <p class="hide-message">Import complete</p>
+    <div class="container">
+      <p>Import options</p>
+      <label>
+        API key
+        <input type="text" id="api-key-input" class="api-key-input" name="api-key" value="<?php echo get_option('zoomos_api_key'); ?>" />
+      </label>
+      <input type="submit" class="button button-custom-import" name="insert" value="Import" />
+      <p class="hide-message">Import complete</p>
+      <span class="spinner"></span>
+    </div>
     <?php
     $output = ob_get_clean();
     echo $output;

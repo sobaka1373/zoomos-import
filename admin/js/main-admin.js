@@ -10,6 +10,7 @@
                 type: 'POST',
                 data: {
                     'api-key': $('#api-key-input').val(),
+                    'api-limit': $('#product_limit').val(),
                     'action': 'start_import',
                 },
                 success:function(data) {

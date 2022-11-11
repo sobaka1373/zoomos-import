@@ -1,5 +1,9 @@
-.hide-message {
+.hide-message, .hide-message-cron {
     color: #00a32a;
+    display: none;
+}
+.hide-message-error {
+    color: #a30000;
     display: none;
 }
 

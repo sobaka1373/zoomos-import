@@ -3,7 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-function admin_page_open() {
+function admin_page_open()
+{
     ob_start();
     ?>
     <div class="container">
@@ -12,19 +13,21 @@ function admin_page_open() {
         API key
         <input type="text" id="api-key-input" class="api-key-input" name="api-key" value="<?php echo get_option('zoomos_api_key'); ?>" />
       </label>
-      <label>
-        Limit
-        <input type="text" id="product_limit" class="api-key-input" name="api-limit" value="1" />
-      </label>
+<!--      <label>-->
+<!--        Limit-->
+<!--        <input type="text" id="product_limit" class="api-key-input" name="api-limit" value="1" />-->
+<!--      </label>-->
       <input type="submit" class="button button-custom-import" name="insert" value="Import" />
       <p class="hide-message">Create cron task</p>
       <p class="hide-message-cron">Cron start</p>
       <p class="hide-message-error">Import completed with error</p>
       <span class="spinner"></span>
+      <div id="myProgress">
+        <div id="myBar">0%</div>
+      </div>
     </div>
     <?php
     $output = ob_get_clean();
-//    phpinfo();
     echo $output;
 }
 
@@ -36,6 +39,7 @@ function getDigits($str)
 
 function productSetData($product, $value, $api_key)
 {
+    $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
     $product->set_price($value['price']);
     $product->set_regular_price($value['price']);
     $product->set_manage_stock(true);
@@ -47,7 +51,11 @@ function productSetData($product, $value, $api_key)
         $product->set_backorders('yes');
     }
     if ($value['status'] === 1) {
-        $product->set_stock_quantity(getDigits($value['supplierInfo']['quantity']));
+      if (!isset($value['supplierInfo']['quantity']) ||  getDigits($value['supplierInfo']['quantity']) === 0 || empty($value['supplierInfo']['quantity'])) {
+          $product->set_stock_quantity(10);
+      } else {
+          $product->set_stock_quantity(getDigits($value['supplierInfo']['quantity']));
+      }
     }
     $imageId = uploadImage($value['image']);
     $product->set_image_id($imageId);
@@ -74,13 +82,9 @@ function productSetData($product, $value, $api_key)
 function uploadImage($imageUrl)
 {
     $image_url = $imageUrl . ".jpeg";
-
     $upload_dir = wp_upload_dir();
-
     $image_data = file_get_contents( $image_url );
-
     $random_hex = bin2hex(random_bytes(18));
-
     $filename = $random_hex . basename( $image_url );
 
     if ( wp_mkdir_p( $upload_dir['path'] ) ) {
@@ -91,9 +95,7 @@ function uploadImage($imageUrl)
     }
 
     file_put_contents( $file, $image_data );
-
     $wp_filetype = wp_check_filetype( $filename, null );
-
     $attachment = array(
         'post_mime_type' => $wp_filetype['type'],
         'post_title' => sanitize_file_name( $filename ),
@@ -108,8 +110,9 @@ function uploadImage($imageUrl)
     return $attach_id;
 }
 
-function setAttribute($product, $dataArray) {
-
+function setAttribute($product, $dataArray)
+{
+    define( 'WC_DELIMITER', '|' );
     $attributes = [];
     foreach ($dataArray as $item) {
         $attribute = new WC_Product_Attribute();
@@ -131,4 +134,15 @@ function setAttribute($product, $dataArray) {
     }
     $product->set_attributes($attributes);
     $product->save();
+}
+
+function deleteOldMedias($product_id)
+{
+    $product = wc_get_product( $product_id );
+    $old_main_img = $product->get_image_id();
+    wp_delete_attachment( $old_main_img );
+    $old_gallery = $product->get_gallery_image_ids();
+    foreach ($old_gallery as $item) {
+        wp_delete_attachment( $item );
+    }
 }

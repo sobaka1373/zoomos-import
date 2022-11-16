@@ -54,3 +54,15 @@ Preloader
 /*
 Preloader
 */
+
+#myProgress {
+    width: 100%;
+    margin-top: 20px;
+    background-color: #ddd;
+}
+
+#myBar {
+    width: 0;
+    height: 30px;
+    background-color: #04AA6D;
+}

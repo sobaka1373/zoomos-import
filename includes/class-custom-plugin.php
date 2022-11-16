@@ -32,7 +32,19 @@ class Custom_Plugin {
         $this->loader->add_action( 'admin_menu', $plugin_admin, 'register_admin_page');
         $this->loader->add_action( 'wp_ajax_start_import', $plugin_admin , 'start_import' );
         $this->loader->add_action( 'wp_ajax_start_cron', $plugin_admin , 'start_cron' );
+        $this->loader->add_action( 'wp_ajax_get_product_count', $plugin_admin , 'get_product_count' );
         $this->loader->add_action('my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
+
+        $this->loader->add_action('custom_product_update', $plugin_admin, 'update_products_every_day');
+//        $this->loader->add_action('my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
+        add_filter( 'cron_schedules', 'cron_add_five_min' );
+        function cron_add_five_min( $schedules ) {
+            $schedules['five_min'] = array(
+                'interval' => 60 * 3,
+                'display' => 'Раз в 3 минут'
+            );
+            return $schedules;
+        }
     }
 
     private function define_public_hooks() {

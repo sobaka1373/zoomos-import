@@ -37,11 +37,22 @@ function getDigits($str)
     return (int)$strWithoutChars;
 }
 
-function productSetData($product, $value, $api_key)
+function productSetData($product, $value, $api_key, $get_sale_flag = true)
 {
+   if ($product->get_name() !== $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']) {
     $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
-    $product->set_price($value['price']);
-    $product->set_regular_price($value['price']);
+   }
+
+    if ($get_sale_flag) {
+        $product->set_price($value['price']);
+        $product->set_regular_price($value['price']);
+        if (isset($value['supplierInfo']['isWholesalePrice']) && isset($value['priceOld']) && $value['supplierInfo']['isWholesalePrice'] == true) {
+            $product->set_price($value['priceOld']);
+            $product->set_regular_price($value['priceOld']);
+            $product->set_sale_price($value['price']);
+        }
+    }
+
     $product->set_manage_stock(true);
     if ($value['status'] === 3) {
         $product->set_stock_status('outofstock');
@@ -67,7 +78,7 @@ function productSetData($product, $value, $api_key)
     $json = file_get_contents($productLink . $api_key );
     $obj_additional_data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
-    setAttribute($product, $obj_additional_data['filters']);
+    setNewAttribute($product, $obj_additional_data['filters']);
     $gallery = [];
     foreach ($obj_additional_data['images'] as $item) {
         $gallery[] = uploadImage($item);
@@ -76,6 +87,38 @@ function productSetData($product, $value, $api_key)
     $product->set_short_description($obj_additional_data['shortDescriptionHTML']);
     $product->set_description($obj_additional_data['fullDescriptionHTML'] . '<br>' . $obj_additional_data['warrantyInfoHTML']);
 
+    $product->save();
+}
+
+function setMinData($product, $value, $get_sale_flag = true)
+{
+    if ($product->get_name() !== $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']) {
+        $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
+    }
+    if ($get_sale_flag) {
+        if ($product->get_price() !== $value['price']) {
+            $product->set_price($value['price']);
+        }
+        if ($product->get_regular_price() !== $value['price']) {
+            $product->set_regular_price($value['price']);
+        }
+
+        if (isset($value['supplierInfo']['isWholesalePrice']) && isset($value['priceOld']) && $value['supplierInfo']['isWholesalePrice'] == true) {
+          if ($product->get_price() !== $value['priceOld']) {
+              $product->set_price($value['priceOld']);
+          }
+          if ($product->get_price() !== $value['priceOld']) {
+              $product->set_regular_price($value['priceOld']);
+          }
+          if ($product->get_sale_price() !== $value['price']) {
+              $product->set_sale_price($value['price']);
+          }
+        }
+    }
+
+    setProductStatus($product, $value);
+    $imageId = uploadImage($value['image']);
+    $product->set_image_id($imageId);
     $product->save();
 }
 
@@ -145,4 +188,102 @@ function deleteOldMedias($product_id)
     foreach ($old_gallery as $item) {
         wp_delete_attachment( $item );
     }
+}
+
+function setNewAttribute($product, $dataArray)
+{
+    $data = [];
+    foreach ($dataArray as $item) {
+        $rus_name = $item['name'];
+        $taxonomy_name = generateSlug($item['name']);
+        wc_create_attribute(array(
+            'name' => $rus_name,
+            'type' => 'text',
+            'slug' => $taxonomy_name
+        ));
+        register_taxonomy( 'pa_' . $taxonomy_name, array( 'product' ), array() );
+        $product_id = $product->get_id();
+        foreach ($item['values'] as $value) {
+            $terms = $value['name'];
+            wp_set_object_terms($product_id, $terms, 'pa_' . $taxonomy_name);
+            $data['pa_' . $taxonomy_name] =
+                [
+                    'name' => 'pa_' . $taxonomy_name,
+                    'value' => '',
+                    'is_visible' => '0',
+                    'is_taxonomy' => '1'
+                ];
+        }
+    }
+    update_post_meta($product_id, '_product_attributes', $data);
+    $product->save();
+}
+
+function generateSlug($string) {
+
+    $rus=array('А','Б','В','Г','Д','Е','Ё','Ж','З','И','Й','К','Л','М','Н','О','П','Р','С','Т','У','Ф','Х','Ц','Ч','Ш','Щ','Ъ','Ы','Ь','Э','Ю','Я','а','б','в','г','д','е','ё','ж','з','и','й','к','л','м','н','о','п','р','с','т','у','ф','х','ц','ч','ш','щ','ъ','ы','ь','э','ю','я',' ');
+    $lat=array('a','b','v','g','d','e','e','gh','z','i','y','k','l','m','n','o','p','r','s','t','u','f','h','c','ch','sh','sch','y','y','y','e','yu','ya','a','b','v','g','d','e','e','gh','z','i','y','k','l','m','n','o','p','r','s','t','u','f','h','c','ch','sh','sch','y','y','y','e','yu','ya',' ');
+
+    $string = str_replace(array(...$rus, '-'), array(...$lat, ''), $string);
+    return preg_replace('/[^A-Za-z0-9-]+/', '_', $string);
+}
+
+/**
+ * Handles making a cURL request
+ *
+ * @param string $url         URL to call out to for information.
+ * @param bool   $callDetails Optional condition to allow for extended
+ *   information return including error and getinfo details.
+ *
+ * @return bool|string $returnGroup cURL response and optional details.
+ */
+function makeRequest($url, $callDetails = false)
+{
+    // Set handle
+    $ch = curl_init($url);
+
+    // Set options
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    // Execute curl handle add results to data return array.
+    $result = curl_exec($ch);
+//    $returnGroup = ['curlResult' => $result,];
+
+    // If details of curl execution are asked for add them to return group.
+    if ($callDetails) {
+        $returnGroup['info'] = curl_getinfo($ch);
+        $returnGroup['errno'] = curl_errno($ch);
+        $returnGroup['error'] = curl_error($ch);
+    }
+
+    // Close cURL and return response.
+    curl_close($ch);
+    return $result;
+}
+
+function setMetaData($product, $data)
+{
+    $product->update_meta_data('zoomos_id', $data['id']);
+    $product->update_meta_data('zoomos_category', $data['category']['id']);
+    $product->save();
+}
+
+function setProductStatus($product, $data)
+{
+    $product->set_manage_stock(true);
+    if ($data['status'] === 3) {
+        $product->set_stock_status('outofstock');
+    }
+    if ($data['status'] === 2) {
+        $product->set_stock_status('outofstock');
+        $product->set_backorders('yes');
+    }
+    if ($data['status'] === 1) {
+        if (!isset($data['supplierInfo']['quantity']) ||  getDigits($data['supplierInfo']['quantity']) === 0 || empty($data['supplierInfo']['quantity'])) {
+            $product->set_stock_quantity(10);
+        } else {
+            $product->set_stock_quantity(getDigits($data['supplierInfo']['quantity']));
+        }
+    }
+    $product->save();
 }

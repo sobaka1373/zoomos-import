@@ -49,22 +49,23 @@ class Custom_Plugin_Admin
     {
 
         wp_clear_scheduled_hook( 'my_hourly_event' );
+        wp_unschedule_hook( 'my_hourly_event');
+        wp_clear_scheduled_hook( 'custom_product_update' );
         wp_unschedule_hook( 'custom_product_update');
         if (isset($_POST['api-key']) && !empty($_POST['api-key'])) {
             update_option( 'zoomos_api_key', $_POST['api-key']);
         }
-//        elseif (isset($arg1)) {
-//            update_option( 'zoomos_api_key', $arg1);
-//        }
+
         $arg1 = get_option('zoomos_api_key');
         $arg2 = '';
         update_option('zoomos_offset', 0);
 //        wp_schedule_single_event( time(), 'my_hourly_event',  array($arg1, $arg2));
 //        do_action('my_hourly_event', $arg1, $arg2);
+        do_action('custom_product_update');
 
-//        do_action('custom_product_update');
 
-        wp_schedule_event( time(), 'five_min', 'my_hourly_event',  array($arg1, $arg2));
+//        wp_schedule_event( time(), 'one_min', 'my_hourly_event',  array($arg1, $arg2));
+//        do_action('custom_single_product_update',$arg1, 993097);
     }
 
     public function get_product_count()
@@ -99,127 +100,169 @@ class Custom_Plugin_Admin
             'post_type' => 'product',
             'posts_per_page' => -1,
         );
-        $capacity = 25;
+        $capacity = 500;
         $products = wc_get_products($args);
         $total_product = count($products);
 
-        if ($total_product < 100) {
-//            $offset = ($total_product / $capacity) * $capacity;
-            $priceListLink = "https://api.zoomos.by/pricelist?key=";
-            $priceLimit = "&offset=";
-            $priceLimit .= $total_product . "&limit=$capacity";
-            $productLink = "https://api.zoomos.by/item/{zoomos_product_id}?key=";
+        $priceListLink = "https://api.zoomos.by/pricelist?key=";
+        $priceLimit = "&offset=";
+        $priceLimit .= $total_product . "&limit=$capacity";
 
+        $api_key = get_option('zoomos_api_key');
 
-            $api_key = get_option('zoomos_api_key');
+        if (!empty($api_key)) {
+            $json = makeRequest($priceListLink . $api_key . $priceLimit);
+            $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            if (!empty($obj)) {
+                foreach ($obj as $value) {
+                    try {
+                        $args = array(
+                            'post_type' => 'product',
+                            'meta_key' => 'zoomos_id',
+                            'meta_value' => $value['id'],
+                            'meta_compare' => '='
+                        );
+                        $products = wc_get_products($args);
 
-            if (!empty($api_key)) {
+                        if (empty($products)) {
+                            $post_id = wp_insert_post(array(
+                                'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
+                                'post_type' => 'product',
+                                'post_status' => 'draft',
+                                'post_content' => '',
+                            ));
+                            $product = wc_get_product($post_id);
+                            $product->set_sku($value['id']);
+                            setMetaData($product, $value);
 
-                $json = file_get_contents($priceListLink . $api_key . $priceLimit );
-                $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-
-                foreach ($obj as  $value) {
-                    $args = array(
-                        'post_type' => 'product',
-                        'meta_key' => 'zoomos_id',
-                        'meta_value' => $value['id'],
-                        'meta_compare' => '='
-                    );
-                    $products = wc_get_products($args);
-
-                    if (empty($products)) {
+                        } else {
+                            $product = wc_get_product($products[0]->id);
+                            $old_main_img = $product->get_image_id();
+                            wp_delete_attachment($old_main_img);
+//                            wp_update_post(array(
+//                                'ID' => $products[0]->id,
+//                                'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
+//                            ));
+                            deleteOldMedias($products[0]->id);
+                        }
+                        setMinData($product, $value);
+                        wp_schedule_single_event( time(), 'custom_single_product_update',  array($api_key, $value['id']));
+                    } catch (Exception $exception) {
                         $post_id = wp_insert_post(array(
                             'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
                             'post_type' => 'product',
                             'post_status' => 'draft',
-                            'post_content' => '',
+                            'post_content' => $exception->getMessage(),
                         ));
-                        $product = wc_get_product($post_id);
-                        $product->set_sku($value['id']);
-
-                    } else {
-                        $product = wc_get_product( $products[0]->id );
-                        $old_main_img = $product->get_image_id();
-                        wp_delete_attachment( $old_main_img );
-                        wp_update_post(array(
-                            'ID' => $products[0]->id,
-                            'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
-                        ));
-                        deleteOldMedias($products[0]->id);
                     }
-                    productSetData($product, $value, $api_key);
                 }
-
+            } else {
+                wp_clear_scheduled_hook( 'my_hourly_event' );
+                wp_unschedule_hook( 'my_hourly_event');
+                wp_clear_scheduled_hook( 'custom_product_update' );
+                wp_unschedule_hook( 'custom_product_update');
+                wp_schedule_event(time(), 'one_min', 'custom_product_update');
             }
-        } else {
-            wp_unschedule_hook( 'my_hourly_event' );
-            wp_schedule_event( time(), 'five_min', 'custom_product_update');
         }
-
-
     }
 
     public function update_products_every_day()
     {
-        $args = array(
-            'post_type' => 'product',
-            'posts_per_page' => -1,
-        );
-        $capacity = 25;
-        $products = wc_get_products($args);
-        $total_product = count($products);
+        $capacity = 500;
         $my_offset = get_option('zoomos_offset');
 
-        if ($my_offset < 100) {
-            $priceListLink = "https://api.zoomos.by/pricelist?key=";
-            $priceLimit = "&offset=";
-            $priceLimit .= $my_offset . "&limit=$capacity";
-            $productLink = "https://api.zoomos.by/item/{zoomos_product_id}?key=";
+        $priceListLink = "https://api.zoomos.by/pricelist?key=";
+        $priceLimit = "&offset=";
+        $priceLimit .= $my_offset . "&limit=$capacity";
+        $api_key = get_option('zoomos_api_key');
+        if (!empty($api_key)) {
+            $json = makeRequest($priceListLink . $api_key . $priceLimit);
+            $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            if (!empty($obj)) {
+                foreach ($obj as $value) {
+                    try {
+                        $args = array(
+                            'post_type' => 'product',
+                            'meta_key' => 'zoomos_id',
+                            'meta_value' => $value['id'],
+                            'meta_compare' => '='
+                        );
+                        $products = wc_get_products($args);
 
-            $api_key = get_option('zoomos_api_key');
-
-            if (!empty($api_key)) {
-
-                $json = file_get_contents($priceListLink . $api_key . $priceLimit );
-                $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-
-                foreach ($obj as  $value) {
-                    $args = array(
-                        'post_type' => 'product',
-                        'meta_key' => 'zoomos_id',
-                        'meta_value' => $value['id'],
-                        'meta_compare' => '='
-                    );
-                    $products = wc_get_products($args);
-
-                    if (empty($products)) {
+                        if (empty($products)) {
+                            $post_id = wp_insert_post(array(
+                                'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
+                                'post_type' => 'product',
+                                'post_status' => 'draft',
+                                'post_content' => '',
+                            ));
+                            $product = wc_get_product($post_id);
+                            $product->set_sku($value['id']);
+                            setMetaData($product, $value);
+                        } else {
+                            $product = wc_get_product($products[0]->id);
+                            $old_main_img = $product->get_image_id();
+//                            $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
+                            wp_delete_attachment($old_main_img);
+                            deleteOldMedias($products[0]->id);
+                        }
+                        $get_sale_flag = get_field('sale_from_zoomoz', $products[0]->id, false);
+                        if ($get_sale_flag === null || $get_sale_flag === 'Yes') {
+                            setMinData($product, $value);
+                            wp_schedule_single_event( time(), 'custom_single_product_update',  array($api_key, $value['id']));
+                        } else {
+                            setMinData($product, $value, false);
+                            wp_schedule_single_event( time(), 'custom_single_product_update',  array($api_key, $value['id']));
+                        }
+                    } catch (Exception $exception) {
                         $post_id = wp_insert_post(array(
                             'post_title' => $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model'],
                             'post_type' => 'product',
                             'post_status' => 'draft',
-                            'post_content' => '',
+                            'post_content' => $exception->getMessage(),
                         ));
-                        $product = wc_get_product($post_id);
-                        $product->set_sku($value['id']);
-
-                    } else {
-                        $product = wc_get_product( $products[0]->id );
-                        $old_main_img = $product->get_image_id();
-                        $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
-                        wp_delete_attachment( $old_main_img );
-                        deleteOldMedias($products[0]->id);
                     }
-                    productSetData($product, $value, $api_key);
+
                     $my_offset = get_option('zoomos_offset');
                     $my_offset++;
                     update_option('zoomos_offset', $my_offset);
                 }
-
+            } else {
+                update_option('zoomos_offset', 0);
+                wp_unschedule_hook('custom_product_update');
             }
-        } else {
-            update_option('zoomos_offset', 0);
-            wp_unschedule_hook( 'custom_product_update');
         }
-
     }
+
+    public function update_single_product($api, $product_id)
+    {
+        $args = array(
+            'post_type' => 'product',
+            'meta_key' => 'zoomos_id',
+            'meta_value' => $product_id,
+            'meta_compare' => '='
+        );
+        $products = wc_get_products($args);
+        $product = wc_get_product($products[0]->id);
+        $productLink = "https://api.zoomos.by/item/$product_id?key=$api";
+        $json = makeRequest($productLink);
+        $obj = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+//        $product->set_name($obj['typePrefix'] . " " . $obj['vendor']['name'] . " " . $obj['model']);
+        setNewAttribute($product, $obj['filters']);
+        $gallery = [];
+        foreach ($obj['images'] as $item) {
+            $gallery[] = uploadImage($item);
+        }
+        $product->set_gallery_image_ids($gallery);
+        if ($product->get_short_description() !== $obj['shortDescriptionHTML']) {
+            $product->set_short_description($obj['shortDescriptionHTML']);
+        }
+        if ($product->get_description() !== $obj['fullDescriptionHTML'] . '<br>' . $obj['warrantyInfoHTML']) {
+            $product->set_description($obj['fullDescriptionHTML'] . '<br>' . $obj['warrantyInfoHTML']);
+        }
+        $product->save();
+        return null;
+    }
+
 }

@@ -22,6 +22,7 @@ class Custom_Plugin {
         require_once plugin_dir_path(__DIR__) . 'admin/class-custom-plugin-admin.php';
         require_once plugin_dir_path(__DIR__) . 'public/class-custom-plugin-public.php';
         require_once plugin_dir_path(__DIR__) . 'includes/custom-functions.php';
+        require_once plugin_dir_path(__DIR__) . 'includes/acf/sale_checkbox.php';
         $this->loader = new Custom_Plugin_Loader();
     }
 
@@ -33,15 +34,16 @@ class Custom_Plugin {
         $this->loader->add_action( 'wp_ajax_start_import', $plugin_admin , 'start_import' );
         $this->loader->add_action( 'wp_ajax_start_cron', $plugin_admin , 'start_cron' );
         $this->loader->add_action( 'wp_ajax_get_product_count', $plugin_admin , 'get_product_count' );
-        $this->loader->add_action('my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
+        $this->loader->add_action( 'my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
+        $this->loader->add_action( 'custom_single_product_update', $plugin_admin, 'update_single_product', 10, 2);
 
         $this->loader->add_action('custom_product_update', $plugin_admin, 'update_products_every_day');
-//        $this->loader->add_action('my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
-        add_filter( 'cron_schedules', 'cron_add_five_min' );
-        function cron_add_five_min( $schedules ) {
-            $schedules['five_min'] = array(
-                'interval' => 60 * 3,
-                'display' => 'Раз в 3 минут'
+
+        add_filter( 'cron_schedules', 'cron_add_one_min' );
+        function cron_add_one_min( $schedules ) {
+            $schedules['one_min'] = array(
+                'interval' => 60,
+                'display' => 'Раз в минуту'
             );
             return $schedules;
         }

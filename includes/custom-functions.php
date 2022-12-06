@@ -117,19 +117,33 @@ function setMinData($product, $value, $get_sale_flag = true)
     }
 
     setProductStatus($product, $value);
-    $imageId = uploadImage($value['image']);
-    $product->set_image_id($imageId);
+    $oldImg = wp_get_attachment_url($product->get_image_id());
+    if (!$oldImg ||
+        !str_contains($oldImg, $value['id'] .  "_" . $value['typePrefix'] . "_" . $value['vendor']['name'] . "_" . $value['model'] . "_" )) {
+      $imageId = uploadImage($value);
+    }
+
+    if (is_int($imageId) || is_float($imageId)) {
+        $product->set_image_id( isset( $imageId ) ? $imageId : "" );
+    }
     $product->save();
 }
 
-function uploadImage($imageUrl)
+/**
+ * @throws Exception
+ */
+function uploadImage($product, $singleImg = true, $number = 0): int
 {
+    if ($singleImg) {
+        $imageUrl = $product['image'];
+    } else {
+        $imageUrl = $product['images'][$number];
+    }
     $image_url = $imageUrl . ".jpeg";
     $upload_dir = wp_upload_dir();
-    $image_data = file_get_contents( $image_url );
-    $random_hex = bin2hex(random_bytes(18));
-    $filename = $random_hex . basename( $image_url );
-
+    $image_data = file_get_contents($image_url);
+    $result = $product['id'] . "_" . $product['typePrefix'] . "_" . $product['vendor']['name'] . "_" . $product['model'] . "_";
+    $filename = $result . basename($image_url);
     if ( wp_mkdir_p( $upload_dir['path'] ) ) {
         $file = $upload_dir['path'] . '/' . $filename;
     }
@@ -183,7 +197,9 @@ function deleteOldMedias($product_id)
 {
     $product = wc_get_product( $product_id );
     $old_main_img = $product->get_image_id();
-    wp_delete_attachment( $old_main_img );
+    if ($old_main_img) {
+        wp_delete_attachment( $old_main_img );
+    }
     $old_gallery = $product->get_gallery_image_ids();
     foreach ($old_gallery as $item) {
         wp_delete_attachment( $item );
@@ -287,3 +303,15 @@ function setProductStatus($product, $data)
     }
     $product->save();
 }
+
+function deleteDuplicateProduct() {
+  global $wpdb;
+  $results = $wpdb->get_results("SELECT meta_value, count(*) AS total FROM {$wpdb->get_blog_prefix()}postmeta WHERE meta_key = '_sku' GROUP BY meta_value HAVING total > 1");
+//  $products = wc_get_product_id_by_sku( $results[0]->meta_value );
+//    global $wpdb;
+
+    $product_id = $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key='_sku' AND meta_value='%s'", $results[0]->meta_value ) );
+
+    var_dump(1);
+}
+// 3203 product API

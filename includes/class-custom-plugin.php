@@ -39,14 +39,6 @@ class Custom_Plugin {
 
         $this->loader->add_action('custom_product_update', $plugin_admin, 'update_products_every_day');
 
-        add_filter( 'cron_schedules', 'cron_add_one_min' );
-        function cron_add_one_min( $schedules ) {
-            $schedules['one_min'] = array(
-                'interval' => 60,
-                'display' => 'Раз в минуту'
-            );
-            return $schedules;
-        }
     }
 
     private function define_public_hooks() {

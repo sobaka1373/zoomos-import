@@ -15,12 +15,12 @@ class Custom_Plugin_Admin
         $this->version = $version;
     }
 
-    public function enqueue_styles()
+    public function enqueue_styles(): void
     {
         wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/main-admin.css', array(), $this->version, 'all' );
     }
 
-    public function enqueue_scripts()
+    public function enqueue_scripts(): void
     {
         wp_enqueue_media();
         wp_enqueue_script(
@@ -32,7 +32,7 @@ class Custom_Plugin_Admin
         );
     }
 
-    public function register_admin_page()
+    public function register_admin_page(): void
     {
         add_menu_page(
             'custom plugin', 'Custom plugin title', 'manage_options',
@@ -45,7 +45,7 @@ class Custom_Plugin_Admin
     /**
      * @throws JsonException
      */
-    public function start_import()
+    public function start_import(): void
     {
 
         wp_clear_scheduled_hook( 'my_hourly_event' );
@@ -59,14 +59,11 @@ class Custom_Plugin_Admin
         $arg1 = get_option('zoomos_api_key');
         $arg2 = '';
         update_option('zoomos_offset', 0);
-//        wp_schedule_single_event( time(), 'my_hourly_event',  array($arg1, $arg2));
 //        do_action('my_hourly_event', $arg1, $arg2);
 //        do_action('custom_product_update');
-
-//        deleteDuplicateProduct();
-//        wp_die();
-        wp_schedule_event( time(), 'every_minute', 'my_hourly_event',  array($arg1, $arg2));
 //        do_action('custom_single_product_update',$arg1, 578618);
+
+        wp_schedule_event( time(), 'every_minute', 'custom_product_update');
     }
 
     public function get_product_count()
@@ -95,7 +92,7 @@ class Custom_Plugin_Admin
     /**
      * @throws WC_Data_Exception
      */
-    public function do_this_hourly($arg1, $arg2)
+    public function do_this_hourly($arg1, $arg2): void
     {
         $capacity = 500;
         $count_posts = wp_count_posts('product');
@@ -156,7 +153,7 @@ class Custom_Plugin_Admin
         }
     }
 
-    public function update_products_every_day()
+    public function update_products_every_day(): void
     {
         $capacity = 100;
         $my_offset = get_option('zoomos_offset');

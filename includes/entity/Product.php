@@ -8,11 +8,14 @@ class Product
     protected int $zoomos_id;
     protected int $zoomos_category;
     protected int $sku;
+    protected float $price;
     protected int $main_image;
-    protected int $status;
+    protected string $status;
     protected int $quantity;
     protected array $gallery;
     protected array $attributes;
+    protected string $description;
+    protected string $short_description;
 
     public function __construct( $name, $zoomos_id, $zoomos_category )
     {
@@ -97,7 +100,7 @@ class Product
         $this->main_image = $attach_id;
     }
 
-    public function getProductStatus(): int
+    public function getProductStatus(): string
     {
         return $this->status;
     }
@@ -135,5 +138,15 @@ class Product
     public function setProductAttributes(array $attributes): void
     {
         $this->attributes = $attributes;
+    }
+
+    public function getProductPrice(): float
+    {
+        return $this->price;
+    }
+
+    public function setProductPrice(float $price): void
+    {
+        $this->price = $price;
     }
 }

@@ -48,11 +48,9 @@
                     'action': 'get_product_count',
                 },
                 success:function(data) {
-                    console.log(data);
-                    var elem = document.getElementById("myBar");
-                    var width = data;
-                    elem.style.width = data + "%";
-                    elem.innerHTML = width + "%";
+                    var json = JSON.parse(data);
+                    document.getElementById("total").innerHTML = json['zoomos_total_product'];
+                    document.getElementById("offset").innerHTML = json['zoomos_offset'];
                 }
             });
         }

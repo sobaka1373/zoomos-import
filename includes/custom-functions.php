@@ -13,17 +13,17 @@ function admin_page_open()
         API key
         <input type="text" id="api-key-input" class="api-key-input" name="api-key" value="<?php echo get_option('zoomos_api_key'); ?>" />
       </label>
-<!--      <label>-->
-<!--        Limit-->
-<!--        <input type="text" id="product_limit" class="api-key-input" name="api-limit" value="1" />-->
-<!--      </label>-->
       <input type="submit" class="button button-custom-import" name="insert" value="Import" />
       <p class="hide-message">Create cron task</p>
       <p class="hide-message-cron">Cron start</p>
       <p class="hide-message-error">Import completed with error</p>
       <span class="spinner"></span>
       <div id="myProgress">
-        <div id="myBar">0%</div>
+        <div class="container">
+          <span id="offset"></span>
+          /
+          <span id="total"></span>
+        </div>
       </div>
     </div>
     <?php
@@ -98,29 +98,40 @@ function setMinData($product, $value, $get_sale_flag = true)
     if ($get_sale_flag) {
         if ($product->get_price() !== $value['price']) {
             $product->set_price($value['price']);
-        }
-        if ($product->get_regular_price() !== $value['price']) {
             $product->set_regular_price($value['price']);
         }
 
         if (isset($value['supplierInfo']['isWholesalePrice']) && isset($value['priceOld']) && $value['supplierInfo']['isWholesalePrice'] == true) {
           if ($product->get_price() !== $value['priceOld']) {
-              $product->set_price($value['priceOld']);
-          }
-          if ($product->get_price() !== $value['priceOld']) {
-              $product->set_regular_price($value['priceOld']);
+              $product_price = (float)$value['priceOld'];
+              $product->set_price($product_price);
+              $product->set_regular_price($product_price);
           }
           if ($product->get_sale_price() !== $value['price']) {
-              $product->set_sale_price($value['price']);
+              $product_sale_price = (float)$value['price'];
+              $product->set_sale_price($product_sale_price);
           }
         }
     }
 
+    if (isset($value['supplierInfo']['warrantyMonth'])) {
+      $statusId = (int)$value['supplierInfo']['warrantyMonth'];
+      if ($statusId === 1) {
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяц </div>");
+      } elseif ($statusId >= 1 && $statusId <= 5) {
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяца </div>");
+      } elseif ($statusId >= 5) {
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяцев </div>");
+      }
+    }
+    $product->save();
+
     setProductStatus($product, $value);
     $oldImg = wp_get_attachment_url($product->get_image_id());
     if (!$oldImg ||
-        !str_contains($oldImg, $value['id'] .  "_" . $value['typePrefix'] . "_" . $value['vendor']['name'] . "_" . $value['model'] . "_" )) {
-      $imageId = uploadImage($value);
+        !str_contains($oldImg, $value['id'] .  "_" . $value['typePrefix'] . "_" . $value['vendor']['name'] . "_")) {
+        deleteOldMedias($product->get_id());
+        $imageId = uploadImage($value);
     }
 
     if (is_int($imageId) || is_float($imageId)) {
@@ -142,7 +153,7 @@ function uploadImage($product, $singleImg = true, $number = 0): int
     $image_url = $imageUrl . ".jpeg";
     $upload_dir = wp_upload_dir();
     $image_data = file_get_contents($image_url);
-    $result = $product['id'] . "_" . $product['typePrefix'] . "_" . $product['vendor']['name'] . "_" . $product['model'] . "_";
+    $result = $product['id'] . "_" . $product['typePrefix'] . "_" . $product['vendor']['name'] . "_";
     $filename = $result . basename($image_url);
     if ( wp_mkdir_p( $upload_dir['path'] ) ) {
         $file = $upload_dir['path'] . '/' . $filename;
@@ -204,6 +215,7 @@ function deleteOldMedias($product_id)
     foreach ($old_gallery as $item) {
         wp_delete_attachment( $item );
     }
+    $product->save();
 }
 
 function setNewAttribute($product, $dataArray)
@@ -253,26 +265,11 @@ function generateSlug($string) {
  *
  * @return bool|string $returnGroup cURL response and optional details.
  */
-function makeRequest($url, $callDetails = false)
+function makeRequest($url)
 {
-    // Set handle
     $ch = curl_init($url);
-
-    // Set options
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    // Execute curl handle add results to data return array.
     $result = curl_exec($ch);
-//    $returnGroup = ['curlResult' => $result,];
-
-    // If details of curl execution are asked for add them to return group.
-    if ($callDetails) {
-        $returnGroup['info'] = curl_getinfo($ch);
-        $returnGroup['errno'] = curl_errno($ch);
-        $returnGroup['error'] = curl_error($ch);
-    }
-
-    // Close cURL and return response.
     curl_close($ch);
     return $result;
 }
@@ -287,12 +284,13 @@ function setMetaData($product, $data)
 function setProductStatus($product, $data)
 {
     $product->set_manage_stock(true);
-    if ($data['status'] === 3) {
+    if ($data['status'] === 3 || $data['status'] === 0) {
         $product->set_stock_status('outofstock');
+        $product->set_backorders('no');
     }
     if ($data['status'] === 2) {
         $product->set_stock_status('outofstock');
-        $product->set_backorders('yes');
+        $product->set_backorders('no');
     }
     if ($data['status'] === 1) {
         if (!isset($data['supplierInfo']['quantity']) ||  getDigits($data['supplierInfo']['quantity']) === 0 || empty($data['supplierInfo']['quantity'])) {

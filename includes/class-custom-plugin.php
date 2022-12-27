@@ -17,12 +17,18 @@ class Custom_Plugin {
         $this->define_public_hooks();
     }
 
-    private function load_dependencies() {
+    private function load_dependencies(): void
+    {
         require_once plugin_dir_path(__DIR__) . 'includes/class-custom-plugin-loader.php';
         require_once plugin_dir_path(__DIR__) . 'admin/class-custom-plugin-admin.php';
         require_once plugin_dir_path(__DIR__) . 'public/class-custom-plugin-public.php';
         require_once plugin_dir_path(__DIR__) . 'includes/custom-functions.php';
         require_once plugin_dir_path(__DIR__) . 'includes/acf/sale_checkbox.php';
+
+        require_once plugin_dir_path(__DIR__) . 'includes/entity/ApiRequest.php';
+        require_once plugin_dir_path(__DIR__) . 'includes/entity/Product.php';
+        require_once plugin_dir_path(__DIR__) . 'includes/entity/ProductHelper.php';
+        require_once plugin_dir_path(__DIR__) . 'includes/entity/ProductChecker.php';
         $this->loader = new Custom_Plugin_Loader();
     }
 
@@ -36,6 +42,7 @@ class Custom_Plugin {
         $this->loader->add_action( 'wp_ajax_get_product_count', $plugin_admin , 'get_product_count' );
         $this->loader->add_action( 'my_hourly_event', $plugin_admin, 'do_this_hourly', 10, 2);
         $this->loader->add_action( 'custom_single_product_update', $plugin_admin, 'update_single_product', 10, 2);
+        $this->loader->add_action( 'custom_update_product_image', $plugin_admin, 'update_product_image', 10, 3);
 
         $this->loader->add_action('custom_product_update', $plugin_admin, 'update_products_every_day');
 

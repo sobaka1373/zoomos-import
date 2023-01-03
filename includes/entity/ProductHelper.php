@@ -120,8 +120,8 @@ class ProductHelper
         global $wpdb;
         $results = $wpdb->get_results(
             "SELECT p.ID 
-                    FROM pg_berlin_cms_posts p 
-                    WHERE NOT EXISTS (SELECT * FROM pg_berlin_cms_postmeta pm
+                    FROM  {$wpdb->get_blog_prefix()}posts p 
+                    WHERE NOT EXISTS (SELECT * FROM  {$wpdb->get_blog_prefix()}postmeta pm
                     WHERE p.id = pm.post_id) AND p.post_type = 'product'"
         );
         foreach ($results as $product) {

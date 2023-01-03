@@ -74,7 +74,6 @@ class Custom_Plugin_Admin
 //        do_action('custom_product_update');
 //        do_action('custom_single_product_update',$arg1, 1982184);
 
-
         if (!wp_next_scheduled('custom_product_update')) {
             wp_schedule_event(time(), 'every_minute', 'custom_product_update');
         }
@@ -150,7 +149,7 @@ class Custom_Plugin_Admin
         if (wp_next_scheduled('custom_single_product_update')) {
             return;
         }
-        $capacity = 300;
+        $capacity = 500;
         $my_offset = get_option('zoomos_offset');
 
         $priceListLink = "https://api.zoomos.by/pricelist?key=";
@@ -206,6 +205,7 @@ class Custom_Plugin_Admin
                 }
             } else {
                 ProductHelper::deleteEmptyProducts();
+                deleteDuplicateProduct();
                 update_option('zoomos_offset', 0);
                 wp_unschedule_hook('custom_product_update');
             }

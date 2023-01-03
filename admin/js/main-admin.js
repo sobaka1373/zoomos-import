@@ -54,5 +54,21 @@
                 }
             });
         }
+
+        // $('#clear_products').click(function(){
+        //     $.ajax({
+        //         url: '/wp-admin/admin-ajax.php',
+        //         type: 'POST',
+        //         data: {
+        //             'action': 'delete_empty_product',
+        //         },
+        //         success:function() {
+        //             console.log('Test');
+        //         },
+        //         error: function(errorThrown){
+        //
+        //         }
+        //     });
+        // });
     });
 })(jQuery);

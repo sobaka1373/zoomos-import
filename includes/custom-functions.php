@@ -25,6 +25,7 @@ function admin_page_open()
           <span id="total"></span>
         </div>
       </div>
+<!--      <input type="button" class="button button-custom-import" id="clear_products" value="Clear" />-->
     </div>
     <?php
     $output = ob_get_clean();
@@ -92,9 +93,8 @@ function productSetData($product, $value, $api_key, $get_sale_flag = true)
 
 function setMinData($product, $value, $get_sale_flag = true)
 {
-    if ($product->get_name() !== $value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']) {
-        $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
-    }
+    $product->set_name($value['typePrefix'] . " " . $value['vendor']['name'] . " " . $value['model']);
+
     if ($get_sale_flag) {
         if ($product->get_price() !== $value['price']) {
             $product->set_price($value['price']);
@@ -117,14 +117,18 @@ function setMinData($product, $value, $get_sale_flag = true)
     if (isset($value['supplierInfo']['warrantyMonth'])) {
       $statusId = (int)$value['supplierInfo']['warrantyMonth'];
       if ($statusId === 1) {
-          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяц </div>");
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . " месяц </div>");
       } elseif ($statusId >= 1 && $statusId <= 5) {
-          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяца </div>");
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . " месяца </div>");
       } elseif ($statusId >= 5) {
-          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . "месяцев </div>");
+          $product->set_description("<div class='supplier'>Гарантия: " . $value['supplierInfo']['warrantyMonth'] . " месяцев </div>");
       }
     }
     $product->save();
+
+    try {
+        setBrand($product, $value);
+    } catch (Exception $exception) {}
 
     setProductStatus($product, $value);
     $oldImg = wp_get_attachment_url($product->get_image_id());
@@ -304,12 +308,33 @@ function setProductStatus($product, $data)
 
 function deleteDuplicateProduct() {
   global $wpdb;
-  $results = $wpdb->get_results("SELECT meta_value, count(*) AS total FROM {$wpdb->get_blog_prefix()}postmeta WHERE meta_key = '_sku' GROUP BY meta_value HAVING total > 1");
-//  $products = wc_get_product_id_by_sku( $results[0]->meta_value );
-//    global $wpdb;
+  $results = $wpdb->get_results("SELECT ID FROM {$wpdb->get_blog_prefix()}posts WHERE post_content = '' AND post_type = 'product'");
+  foreach ($results as $item) {
+      wp_delete_post($item->ID, TRUE);
+  }
+  $results = $wpdb->get_results("SELECT ID FROM {$wpdb->get_blog_prefix()}posts WHERE post_content = 'Invalid or duplicated SKU.' AND post_type = 'product'");
+    foreach ($results as $item) {
+        wp_delete_post($item->ID, TRUE);
+    }
+}
 
-    $product_id = $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key='_sku' AND meta_value='%s'", $results[0]->meta_value ) );
+function setBrand($product, $data)
+{
+  $brands_array = [];
+  $product_id = $product->get_id();
 
-    var_dump(1);
+    $terms = get_terms(array(
+        'taxonomy' => 'yith_product_brand',
+        'hide_empty' => false,
+    ));
+
+    if (!empty($terms)) {
+      foreach ($terms as $term) {
+        if (strcasecmp($term->name, $data['vendor']['name']) == 0) {
+            $brands_array[] = $term->term_id;
+            wp_set_object_terms($product_id, $brands_array, YITH_WCBR::$brands_taxonomy );
+        }
+      }
+    }
 }
 // 3203 product API

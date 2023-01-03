@@ -24,6 +24,8 @@ class Custom_Plugin {
         require_once plugin_dir_path(__DIR__) . 'public/class-custom-plugin-public.php';
         require_once plugin_dir_path(__DIR__) . 'includes/custom-functions.php';
         require_once plugin_dir_path(__DIR__) . 'includes/acf/sale_checkbox.php';
+//        require_once plugin_dir_path(__DIR__) . 'includes/acf/brands_table.php';
+//        require_once plugin_dir_path(__DIR__) . 'includes/acf/brand_page.php';
 
         require_once plugin_dir_path(__DIR__) . 'includes/entity/ApiRequest.php';
         require_once plugin_dir_path(__DIR__) . 'includes/entity/Product.php';
@@ -45,7 +47,7 @@ class Custom_Plugin {
         $this->loader->add_action( 'custom_update_product_image', $plugin_admin, 'update_product_image', 10, 3);
 
         $this->loader->add_action('custom_product_update', $plugin_admin, 'update_products_every_day');
-
+//        $this->loader->add_action('wp_ajax_delete_empty_product', $plugin_admin, 'clear_product');
     }
 
     private function define_public_hooks() {

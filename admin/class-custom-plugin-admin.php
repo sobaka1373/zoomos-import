@@ -62,20 +62,19 @@ class Custom_Plugin_Admin
             update_option('zoomos_total_product', count($all_products_prices));
         }
 
-        $arg1 = get_option('zoomos_api_key');
-        $arg2 = '';
         update_option('zoomos_offset', 0);
 
+        if (!wp_next_scheduled('custom_product_update')) {
+            wp_schedule_event(time(), 'one_min', 'custom_product_update');
+        }
 
+//        $arg1 = get_option('zoomos_api_key');
+//        $arg2 = '';
 //        do_action('my_hourly_event', true, false);
 //        do_action('custom_product_update');
 //        do_action('custom_single_product_update',$arg1, 863878);
 //        do_action('custom_single_image_product_update',$arg1, 1620082);
 //
-        if (!wp_next_scheduled('custom_product_update')) {
-            wp_schedule_event(time(), 'one_min', 'custom_product_update');
-        }
-
 
         wp_die();
     }
@@ -242,8 +241,6 @@ class Custom_Plugin_Admin
         $all_products_prices = ApiRequest::getAllProductPriceRequest(get_option('zoomos_api_key'));
         update_option('zoomos_total_product', count($all_products_prices));
 
-        $arg1 = get_option('zoomos_api_key');
-        $arg2 = '';
         update_option('zoomos_offset', 0);
 
         if (!wp_next_scheduled('my_hourly_event')) {
@@ -259,11 +256,7 @@ class Custom_Plugin_Admin
         $all_products_prices = ApiRequest::getAllProductPriceRequest(get_option('zoomos_api_key'));
         update_option('zoomos_total_product', count($all_products_prices));
 
-        $arg1 = get_option('zoomos_api_key');
-        $arg2 = '';
         update_option('zoomos_offset', 0);
-
-//        do_action('my_hourly_event', null, null);
 
         if (!wp_next_scheduled('my_hourly_event')) {
             wp_schedule_event(time(), 'five_min', 'my_hourly_event', array(true, true));
@@ -298,11 +291,10 @@ class Custom_Plugin_Admin
             $products = findProduct($value);
 
             if (empty($products)) {
-//                $product = createProduct($value);
                 continue;
-            } else {
-                $product = wc_get_product($products[0]->id);
             }
+
+            $product = wc_get_product($products[0]->id);
 
             if ($arg1) {
                 $get_sale_from_api = checkSales($products[0]->id);

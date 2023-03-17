@@ -48,13 +48,65 @@
                     'action': 'get_product_count',
                 },
                 success:function(data) {
-                    console.log(data);
-                    var elem = document.getElementById("myBar");
-                    var width = data;
-                    elem.style.width = data + "%";
-                    elem.innerHTML = width + "%";
+                    var json = JSON.parse(data);
+                    document.getElementById("total").innerHTML = json['zoomos_total_product'];
+                    document.getElementById("offset").innerHTML = json['zoomos_offset'];
+                },
+                error: function(errorThrown){
+                    console.log(errorThrown);
                 }
             });
         }
+
+        $('#single_product').click(function(){
+            $.ajax({
+                url: '/wp-admin/admin-ajax.php',
+                type: 'POST',
+                data: {
+                    'action': 'single_product_func',
+                },
+                success:function() {
+                    $('.spinner').removeClass('is-active');
+                    $('.hide-message-cron').show();
+                },
+                error: function(errorThrown){
+                    console.log(errorThrown);
+                }
+            });
+        });
+
+        $('#single_product_price').click(function(){
+            $.ajax({
+                url: '/wp-admin/admin-ajax.php',
+                type: 'POST',
+                data: {
+                    'action': 'single_product_price_func',
+                },
+                success:function() {
+                    $('.spinner').removeClass('is-active');
+                    $('.hide-message-cron').show();
+                },
+                error: function(errorThrown){
+                    console.log(errorThrown);
+                }
+            });
+        });
+
+        $('#single_product_gallery').click(function(){
+            $.ajax({
+                url: '/wp-admin/admin-ajax.php',
+                type: 'POST',
+                data: {
+                    'action': 'single_product_gallery_func',
+                },
+                success:function(data) {
+                    $('.spinner').removeClass('is-active');
+                    $('.hide-message-cron').show();
+                },
+                error: function(errorThrown){
+                    console.log(errorThrown);
+                }
+            });
+        });
     });
 })(jQuery);

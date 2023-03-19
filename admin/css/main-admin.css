@@ -2,7 +2,7 @@
     color: #00a32a;
     display: none;
 }
-.hide-message-error {
+.hide-message-error, .hide-message-404 {
     color: #a30000;
     display: none;
 }

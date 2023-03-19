@@ -19,6 +19,7 @@ function admin_page_open()
       <input type="submit" class="button button-custom-import" name="insert" value="Import" />
       <p class="hide-message">Create cron task</p>
       <p class="hide-message-cron">Cron start</p>
+      <p class="hide-message-404">Import already working</p>
       <p class="hide-message-error">Import completed with error</p>
       <span class="spinner"></span>
       <div id="myProgress">
@@ -640,4 +641,19 @@ function checkSales($product_id):bool
       update_field('sale_from_zoomoz', 'Yes', $product_id);
       return true;
     }
+}
+
+function checkCronTasks():bool
+{
+    $tasks = _get_cron_array();
+    foreach ($tasks as $task) {
+        if (array_key_exists('custom_single_product_update', $task)
+        || array_key_exists('custom_product_update', $task)
+        || array_key_exists('my_hourly_event', $task)
+        ) {
+            echo 404;
+            return false;
+        }
+    }
+    return true;
 }

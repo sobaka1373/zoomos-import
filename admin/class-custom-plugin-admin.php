@@ -55,6 +55,10 @@ class Custom_Plugin_Admin
     public function start_import(): void
     {
 
+        if (!checkCronTasks()) {
+            wp_die();
+        }
+
         clearCronJobs();
         if (isset($_POST['api-key']) && !empty($_POST['api-key'])) {
             update_option( 'zoomos_api_key', $_POST['api-key']);
@@ -193,6 +197,10 @@ class Custom_Plugin_Admin
 //        do_action('custom_single_product_update',$arg1, 1872039);
 //        wp_schedule_single_event( time(), 'custom_single_product_update',  array($arg1, 2154253));
 
+        if (!checkCronTasks()) {
+            wp_die();
+        }
+
         clearCronJobs();
 
         $all_products_prices = ApiRequest::getAllProductPriceRequest(get_option('zoomos_api_key'));
@@ -235,6 +243,9 @@ class Custom_Plugin_Admin
 //            }
 //        }
 
+        if (!checkCronTasks()) {
+            wp_die();
+        }
 
         clearCronJobs();
 
@@ -250,6 +261,10 @@ class Custom_Plugin_Admin
     }
 
     public function single_product_gallery_func() {
+
+        if (!checkCronTasks()) {
+            wp_die();
+        }
 
         clearCronJobs();
 

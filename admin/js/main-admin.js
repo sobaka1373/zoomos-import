@@ -3,6 +3,10 @@
     'use strict';
     $(document).ready(function(){
         $('.button-custom-import').click(function(){
+
+            $(':button').prop('disabled', true);
+            $('.button-custom-import').prop('disabled', true);
+
             $('.spinner').addClass('is-active');
             $('.hide-message ').hide();
             $('.hide-message-error').hide();
@@ -16,7 +20,12 @@
                     // 'api-limit': $('#product_limit').val(),
                     'action': 'start_import',
                 },
-                success:function() {
+                success:function(data) {
+                    if (data === '404') {
+                        $('.hide-message-404').show();
+                        $('.spinner').removeClass('is-active');
+                        return;
+                    }
                     $('.spinner').removeClass('is-active');
                     document.getElementById('api-key-input').readOnly = false;
                     $('.hide-message ').show();
@@ -59,6 +68,10 @@
         }
 
         $('#single_product').click(function(){
+
+            $(':button').prop('disabled', true);
+            $('.button-custom-import').prop('disabled', true);
+
             $.ajax({
                 url: '/wp-admin/admin-ajax.php',
                 type: 'POST',
@@ -66,6 +79,10 @@
                     'action': 'single_product_func',
                 },
                 success:function() {
+                    if (data === '404') {
+                        $('.hide-message-404').show();
+                        return;
+                    }
                     $('.spinner').removeClass('is-active');
                     $('.hide-message-cron').show();
                 },
@@ -76,6 +93,10 @@
         });
 
         $('#single_product_price').click(function(){
+
+            $(':button').prop('disabled', true);
+            $('.button-custom-import').prop('disabled', true);
+
             $.ajax({
                 url: '/wp-admin/admin-ajax.php',
                 type: 'POST',
@@ -83,6 +104,11 @@
                     'action': 'single_product_price_func',
                 },
                 success:function() {
+
+                    if (data === '404') {
+                        $('.hide-message-404').show();
+                        return;
+                    }
                     $('.spinner').removeClass('is-active');
                     $('.hide-message-cron').show();
                 },
@@ -93,6 +119,10 @@
         });
 
         $('#single_product_gallery').click(function(){
+
+            $(':button').prop('disabled', true);
+            $('.button-custom-import').prop('disabled', true);
+
             $.ajax({
                 url: '/wp-admin/admin-ajax.php',
                 type: 'POST',
@@ -100,6 +130,11 @@
                     'action': 'single_product_gallery_func',
                 },
                 success:function(data) {
+
+                    if (data === '404') {
+                        $('.hide-message-404').show();
+                        return;
+                    }
                     $('.spinner').removeClass('is-active');
                     $('.hide-message-cron').show();
                 },

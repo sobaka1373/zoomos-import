@@ -54,6 +54,10 @@ class Custom_Plugin {
         $this->loader->add_action('wp_ajax_single_product_gallery_func', $plugin_admin, 'single_product_gallery_func');
         $this->loader->add_filter( 'cron_schedules',  $plugin_admin, 'cron_add_five_min' );
         $this->loader->add_filter( 'cron_schedules',  $plugin_admin, 'cron_add_one_min' );
+
+        $this->loader->add_action( 'my_full_import', $plugin_admin, 'execute_full_import');
+        $this->loader->add_action( 'my_small_import1', $plugin_admin, 'execute_only_price_import_firts');
+        $this->loader->add_action( 'my_small_import2', $plugin_admin, 'execute_only_price_import_second');
     }
 
     private function define_public_hooks() {

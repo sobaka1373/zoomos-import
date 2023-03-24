@@ -127,15 +127,15 @@ class Custom_Plugin_Admin
             update_option('zoomos_offset', $my_offset);
 
 
-            $products = findProduct($value);
+            $product_id = findProduct($value);
 
-            if (empty($products)) {
+            if ($product_id === 0) {
                 $product = createProduct($value);
             } else {
-                $product = wc_get_product($products[0]->id);
+                $product = wc_get_product($product_id);
             }
 
-            $get_sale_from_api = checkSales($products[0]->id);
+            $get_sale_from_api = checkSales($product_id);
 
             setMinData($product, $value, $get_sale_from_api);
             $product->update_meta_data('zoomos_updated', 'Yes');
@@ -219,7 +219,7 @@ class Custom_Plugin_Admin
 
     public function single_product_price_func() {
 
-//        $id_product = 1804009;
+//        $id_product = 72597;
 //        $api_key = get_option('zoomos_api_key');
 //        if (empty($api_key)) {
 //            return;
@@ -229,13 +229,13 @@ class Custom_Plugin_Admin
 //
 //        foreach ($obj as $value) {
 //            if ($value['id'] === $id_product) {
-//                $products = findProduct($value);
-//                if (empty($products)) {
+//                $product_id = findProduct($value);
+//                if ($product_id === 0) {
 //                    $product = createProduct($value);
 //                } else {
-//                    $product = wc_get_product($products[0]->id);
+//                    $product = wc_get_product($product_id);
 //                }
-//                $get_sale_from_api = checkSales($products[0]->id);
+//                $get_sale_from_api = checkSales($product_id);
 //
 //                setMinData($product, $value, $get_sale_from_api);
 //                $product->save();
@@ -276,6 +276,25 @@ class Custom_Plugin_Admin
         if (!wp_next_scheduled('my_hourly_event')) {
             wp_schedule_event(time(), 'five_min', 'my_hourly_event', array(true, true));
         }
+
+//        $date = new DateTime();
+//        $date2 = new DateTime( '2023-03-24 7:20:00' );
+//
+//        $diffInSeconds = $date2->getTimestamp() - $date->getTimestamp();
+//        wp_schedule_event(time() + $diffInSeconds, 'daily', 'my_small_import1');
+//
+//        $date2 = new DateTime( '2023-03-24 10:20:00' );
+//
+//        $diffInSeconds = $date2->getTimestamp() - $date->getTimestamp();
+//
+//        wp_schedule_event(time() + $diffInSeconds, 'daily', 'my_small_import2');
+//
+//        $date2 = new DateTime( '2023-03-24 15:20:00' );
+//
+//        $diffInSeconds = $date2->getTimestamp() - $date->getTimestamp();
+//
+//        wp_schedule_event(time() + $diffInSeconds, 'daily', 'my_full_import');
+
         wp_die();
     }
 
@@ -303,37 +322,22 @@ class Custom_Plugin_Admin
             update_option('zoomos_offset', $my_offset);
 
 
-            $products = findProduct($value);
+            $product_id = findProduct($value);
 
-            if (empty($products)) {
+            if ($product_id === 0) {
                 continue;
             }
 
-            $product = wc_get_product($products[0]->id);
+            $product = wc_get_product($product_id);
 
             if ($arg1) {
-                $get_sale_from_api = checkSales($products[0]->id);
+                $get_sale_from_api = checkSales($product_id);
 
                 setPrice($product, $value, $get_sale_from_api);
             }
 
             if ($arg2) {
-                $product->set_manage_stock(true);
-                if ($value['status'] === 3 || $value['status'] === 0) {
-                    $product->set_stock_status('outofstock');
-                    $product->set_backorders('no');
-                }
-                if ($value['status'] === 2) {
-                    $product->set_stock_status('outofstock');
-                    $product->set_backorders('yes');
-                }
-                if ($value['status'] === 1) {
-                    if (!isset($value['supplierInfo']['quantity']) ||  getDigits($value['supplierInfo']['quantity']) === 0 || empty($value['supplierInfo']['quantity'])) {
-                        $product->set_stock_quantity(10);
-                    } else {
-                        $product->set_stock_quantity(getDigits($value['supplierInfo']['quantity']));
-                    }
-                }
+                setProductStatus($product, $value);
             }
 
             $product->update_meta_data('zoomos_updated', 'Yes');
@@ -355,6 +359,21 @@ class Custom_Plugin_Admin
             'display' => 'Раз в минуту'
         );
         return $schedules;
+    }
+
+    public function execute_full_import()
+    {
+        $this->start_import();
+    }
+
+    public function execute_only_price_import_firts()
+    {
+        $this->single_product_gallery_func();
+    }
+
+    public function execute_only_price_import_second()
+    {
+        $this->single_product_gallery_func();
     }
 
 }

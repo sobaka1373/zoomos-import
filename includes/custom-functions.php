@@ -383,10 +383,12 @@ function setProductStatus($product, $data)
 {
     $product->set_manage_stock(true);
     if ($data['status'] === 3 || $data['status'] === 0) {
+        $product->set_stock_quantity(0);
         $product->set_stock_status('outofstock');
         $product->set_backorders('no');
     }
     if ($data['status'] === 2) {
+        $product->set_stock_quantity(0);
         $product->set_stock_status('outofstock');
         $product->set_backorders('yes');
     }
@@ -573,14 +575,9 @@ function configCronJobs(): bool
     return true;
 }
 
-function findProduct($value)
+function findProduct($value): int
 {
-    $args = array(
-        'post_type' => 'product',
-        'posts_per_page' => -1,
-        'sku' => $value['id'],
-    );
-    return wc_get_products($args);
+    return wc_get_product_id_by_sku($value['id']);
 }
 
 function createProduct($value)
